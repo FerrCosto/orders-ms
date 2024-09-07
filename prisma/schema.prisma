@@ -12,3 +12,19 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model detail {
+    id Int @id @default(autoincrement())
+    user Json
+    product Json
+    quantity Int
+    orders orders[] 
+}
+
+model orders {
+    id Int @id @default(autoincrement())
+    date_order DateTime @db.Date
+    id_detail Int?
+    detail detail? @relation(fields: [id_detail], references: [id], onDelete: NoAction, onUpdate: NoAction) 
+
+}
