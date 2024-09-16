@@ -13,18 +13,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model detail {
+model details {
     id Int @id @default(autoincrement())
-    user Json
-    product Json
+    productId Int
     quantity Int
-    orders orders[] 
+    id_order Int?
+    order order? @relation(fields: [id_order], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
 }
 
-model orders {
+model order {
     id Int @id @default(autoincrement())
     date_order DateTime @db.Date
-    id_detail Int?
-    detail detail? @relation(fields: [id_detail], references: [id], onDelete: NoAction, onUpdate: NoAction) 
-
+    details details[]
 }
