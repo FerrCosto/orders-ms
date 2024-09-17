@@ -17,6 +17,7 @@ model details {
     id Int @id @default(autoincrement())
     productId Int
     quantity Int
+    price Decimal @db.Decimal(10, 2)
     id_order Int?
     order order? @relation(fields: [id_order], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -26,4 +27,6 @@ model order {
     id Int @id @default(autoincrement())
     date_order DateTime @db.Date
     details details[]
+
+    @@map("orders")
 }
