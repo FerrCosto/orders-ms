@@ -27,9 +27,4 @@ export class OrdersController {
   update(@Payload() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(updateOrderDto.id, updateOrderDto);
   }
-
-  @MessagePattern('order.remove')
-  remove(@Payload() id: number) {
-    return this.ordersService.remove(id);
-  }
 }

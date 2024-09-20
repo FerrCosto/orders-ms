@@ -50,6 +50,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
                     (product) => product.id === detail.productId,
                   ).price,
                 ),
+                totalPrice,
               })),
             },
           },
@@ -77,19 +78,62 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     }
   }
 
-  findAll() {
-    return `This action returns all orders`;
+  async findAll() {
+    const orders = await this.order.findMany({
+      include: {
+        details: true,
+      },
+    });
+
+    return orders;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} order`;
+  async findOne(id: number) {
+    const order = await this.order.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        details: true,
+      },
+    });
+
+    if (!order)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `Order with #${id} not found`,
+      });
+
+    const productIds = order.details.map((detail) => detail.productId);
+
+    const products: any[] = await firstValueFrom(
+      this.client.send('products.validate', productIds),
+    );
+
+    console.log(products);
+    return {
+      ...order,
+      details: order.details.map((detail) => ({
+        id: detail.id,
+        quantity: detail.quantity,
+        price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
+        name: products.map((product) => product.name),
+
+        img: products.map((product) =>
+          product.img_products.map((img: any) => ({
+            url: img.url,
+            alt: img.alt,
+            state_image: img.state_image,
+          })),
+        ),
+        totalPrice: CurrencyFormatter.formatCurrency(
+          detail.totalPrice.toNumber(),
+        ),
+      })),
+    };
   }
 
-  update(id: number, updateOrderDto: UpdateOrderDto) {
-    return `This action updates a #${id} order`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} order`;
+  async update(id: number, updateOrderDto: UpdateOrderDto) {
+    return 'cambios';
   }
 }

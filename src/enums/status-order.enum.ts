@@ -1,0 +1,6 @@
+export enum STATUS {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  DELIVERED = 'DELIVERED',
+  CANCELLED = 'CANCELLED',
+}

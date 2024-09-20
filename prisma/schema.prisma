@@ -13,11 +13,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  DELIVERED
+  CANCELLED
+}
+
+
 model details {
     id Int @id @default(autoincrement())
     productId Int
     quantity Int
     price Decimal @db.Decimal(10, 2)
+    totalPrice Decimal @db.Decimal(10,2)
     id_order Int?
     order order? @relation(fields: [id_order], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -26,6 +35,8 @@ model details {
 model order {
     id Int @id @default(autoincrement())
     date_order DateTime @db.Date
+    status OrderStatus @default(PENDING)
+    paid Boolean @default(false)
     details details[]
 
     @@map("orders")
