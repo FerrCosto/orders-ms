@@ -1,7 +1,8 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { paidOrderDto } from './dto/paid-order.dto';
 
 @Controller()
 export class OrdersController {
@@ -26,5 +27,10 @@ export class OrdersController {
   @MessagePattern('order.findOne')
   findOne(@Payload() id: number) {
     return this.ordersService.findOne(id);
+  }
+
+  @EventPattern('payment.succeded')
+  paidOrder(@Payload() paidOrderDto: paidOrderDto) {
+    return this.ordersService.paidOrder(paidOrderDto);
   }
 }

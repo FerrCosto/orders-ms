@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { paidOrderDto } from './dto/paid-order.dto';
 import { PrismaClient } from '@prisma/client';
 import { NATS_SERVICE } from 'src/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
@@ -141,6 +141,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   async createPaymentSession(order: PaymentSessionInterface) {
     const paymentSession = await firstValueFrom(
       this.client.send('create.session.payment', {
+        orderId: order.id,
         currency: 'usd',
         items: order.details.map((item) => ({
           name: item.name,
@@ -151,5 +152,19 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       }),
     );
     return paymentSession;
+  }
+
+  async paidOrder(paidOrder: paidOrderDto) {
+    const order = await this.order.update({
+      where: {
+        id: paidOrder.orderId,
+      },
+      data: {
+        status: 'PAID',
+        paid: true,
+      },
+    });
+
+    return order;
   }
 }
