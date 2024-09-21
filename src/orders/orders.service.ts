@@ -7,6 +7,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrencyFormatter } from 'src/helpers';
+import { PaymentSessionInterface } from './interfaces/create-payment.interface';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -60,12 +61,17 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         },
       });
 
+      console.log(order);
       return {
         ...order,
         details: order.details.map((detail) => ({
           ...detail,
-          price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
-          name: products.map((product) => product.name),
+          price: detail.price.toNumber(),
+          name: products.find((product) => product.id === detail.productId)
+            .name,
+          img:
+            products.find((products) => products.id === detail.productId)
+              .img_products[0]?.url || null,
           total: CurrencyFormatter.formatCurrency(totalPrice),
         })),
       };
@@ -118,7 +124,6 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         quantity: detail.quantity,
         price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
         name: products.map((product) => product.name),
-
         img: products.map((product) =>
           product.img_products.map((img: any) => ({
             url: img.url,
@@ -133,7 +138,18 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     };
   }
 
-  async update(id: number, updateOrderDto: UpdateOrderDto) {
-    return 'cambios';
+  async createPaymentSession(order: PaymentSessionInterface) {
+    const paymentSession = await firstValueFrom(
+      this.client.send('create.session.payment', {
+        currency: 'usd',
+        items: order.details.map((item) => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          images: Array.isArray(item.img) ? item.img : [item.img],
+        })),
+      }),
+    );
+    return paymentSession;
   }
 }
