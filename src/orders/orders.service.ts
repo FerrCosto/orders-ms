@@ -9,6 +9,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { CurrencyFormatter } from 'src/helpers';
 import { PaymentSessionInterface } from './interfaces/create-payment.interface';
 import { STATUS } from 'src/enums/status-order.enum';
+import { FindOneByOrderDto } from './dto/find-One-order.dto';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -42,6 +43,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       const order = await this.order.create({
         data: {
           date_order: new Date(),
+          userId: createOrderDto.userId,
           details: {
             createMany: {
               data: createOrderDto.detail.map((detail) => ({
@@ -95,10 +97,15 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     return orders;
   }
 
-  async findOne(id: number) {
+  async findOne(findOneDto: FindOneByOrderDto) {
+    const { id, userId } = findOneDto;
     const order = await this.order.findFirst({
       where: {
         id,
+        AND: {
+          userId,
+          paid: false,
+        },
       },
       include: {
         details: true,
@@ -138,11 +145,13 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       })),
     };
   }
-  async findOnePaid(id: number) {
+  async findOnePaid(findOneDto: FindOneByOrderDto) {
+    const { id, userId } = findOneDto;
     const order = await this.order.findFirst({
       where: {
         id,
         AND: {
+          userId,
           paid: true,
         },
       },

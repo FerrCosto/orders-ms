@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsMongoId,
   IsNumber,
   IsPositive,
   ValidateNested,
@@ -17,6 +18,8 @@ class CreateOrderDetailDto {
 }
 
 export class CreateOrderDto {
+  @IsMongoId()
+  userId: string;
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

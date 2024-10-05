@@ -34,10 +34,10 @@ model details {
 
 model order {
     id Int @id @default(autoincrement())
+    userId String 
     date_order DateTime @db.Date
     status OrderStatus @default(PENDING)
     paid Boolean @default(false)
     details details[]
-
     @@map("orders")
 }
