@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrencyFormatter } from 'src/helpers';
 import { PaymentSessionInterface } from './interfaces/create-payment.interface';
+import { STATUS } from 'src/enums/status-order.enum';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -124,7 +125,53 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         quantity: detail.quantity,
         price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
         name: products.map((product) => product.name),
-        img: products.map((product) =>
+        img: products.flatMap((product) =>
+          product.img_products.map((img: any) => ({
+            url: img.url,
+            alt: img.alt,
+            state_image: img.state_image,
+          })),
+        ),
+        totalPrice: CurrencyFormatter.formatCurrency(
+          detail.totalPrice.toNumber(),
+        ),
+      })),
+    };
+  }
+  async findOnePaid(id: number) {
+    const order = await this.order.findFirst({
+      where: {
+        id,
+        AND: {
+          paid: true,
+        },
+      },
+      include: {
+        details: true,
+      },
+    });
+
+    if (!order)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `Order with #${id} not found`,
+      });
+
+    const productIds = order.details.map((detail) => detail.productId);
+
+    const products: any[] = await firstValueFrom(
+      this.client.send('products.validate', productIds),
+    );
+
+    console.log(products);
+    return {
+      ...order,
+      details: order.details.map((detail) => ({
+        id: detail.id,
+        quantity: detail.quantity,
+        price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
+        name: products.map((product) => product.name),
+        img: products.flatMap((product) =>
           product.img_products.map((img: any) => ({
             url: img.url,
             alt: img.alt,
