@@ -33,10 +33,11 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         this.client.send('products.validate', productsId),
       );
       const totalPrice = createOrderDto.detail.reduce((acc, detail) => {
-        const price = products.find(
-          (products) => products.id === detail.productId,
-        ).price;
-        return parseFloat(price) * detail.quantity;
+        const product = products.find(
+          (product) => product.id === detail.productId,
+        );
+        const totalProductPrice = parseFloat(product.price) * detail.quantity;
+        return acc + totalProductPrice;
       }, 0);
 
       // Crear la orden y los detalles
@@ -46,16 +47,19 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
           userId: createOrderDto.userId,
           details: {
             createMany: {
-              data: createOrderDto.detail.map((detail) => ({
-                productId: detail.productId,
-                quantity: detail.quantity,
-                price: new Decimal(
-                  products.find(
-                    (product) => product.id === detail.productId,
-                  ).price,
-                ),
-                totalPrice,
-              })),
+              data: createOrderDto.detail.map((detail) => {
+                const product = products.find(
+                  (product) => product.id === detail.productId,
+                );
+                const price = product.price;
+                const totalProductPrice = price * detail.quantity;
+                return {
+                  productId: detail.productId,
+                  quantity: detail.quantity,
+                  price: new Decimal(price),
+                  totalPrice: new Decimal(totalProductPrice),
+                };
+              }),
             },
           },
         },
@@ -67,16 +71,22 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       console.log(order);
       return {
         ...order,
-        details: order.details.map((detail) => ({
-          ...detail,
-          price: detail.price.toNumber(),
-          name: products.find((product) => product.id === detail.productId)
-            .name,
-          img:
-            products.find((products) => products.id === detail.productId)
-              .img_products[0]?.url || null,
-          total: CurrencyFormatter.formatCurrency(totalPrice),
-        })),
+        details: order.details.map((detail) => {
+          const product = products.find(
+            (product) => product.id === detail.productId,
+          );
+          const price = product.price;
+          const totalProductPrice = price * detail.quantity;
+          return {
+            ...detail,
+            price: detail.price.toNumber(),
+            name: product.name,
+            description: product.description,
+            img: product.img_products[0]?.url || null,
+            total: CurrencyFormatter.formatCurrency(totalProductPrice),
+          };
+        }),
+        totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
       };
     } catch (error) {
       console.log(error);
@@ -98,6 +108,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(findOneDto: FindOneByOrderDto) {
+    let priceAmount: number = 0;
     const { id, userId } = findOneDto;
     const order = await this.order.findFirst({
       where: {
@@ -127,25 +138,32 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     console.log(products);
     return {
       ...order,
-      details: order.details.map((detail) => ({
-        id: detail.id,
-        quantity: detail.quantity,
-        price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
-        name: products.map((product) => product.name),
-        img: products.flatMap((product) =>
-          product.img_products.map((img: any) => ({
+      details: order.details.map((detail) => {
+        const product = products.find(
+          (product) => product.id === detail.productId,
+        );
+        priceAmount += product.price;
+        return {
+          id: detail.id,
+          quantity: detail.quantity,
+          price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
+          name: product.name,
+          description: product.description,
+          img: product.img_products.map((img: any) => ({
             url: img.url,
             alt: img.alt,
             state_image: img.state_image,
           })),
-        ),
-        totalPrice: CurrencyFormatter.formatCurrency(
-          detail.totalPrice.toNumber(),
-        ),
-      })),
+          totalPrice: CurrencyFormatter.formatCurrency(
+            detail.totalPrice.toNumber(),
+          ),
+        };
+      }),
+      totalAmount: CurrencyFormatter.formatCurrency(priceAmount),
     };
   }
   async findOnePaid(findOneDto: FindOneByOrderDto) {
+    let priceAmount: number = 0;
     const { id, userId } = findOneDto;
     const order = await this.order.findFirst({
       where: {
@@ -175,22 +193,29 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     console.log(products);
     return {
       ...order,
-      details: order.details.map((detail) => ({
-        id: detail.id,
-        quantity: detail.quantity,
-        price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
-        name: products.map((product) => product.name),
-        img: products.flatMap((product) =>
-          product.img_products.map((img: any) => ({
+      details: order.details.map((detail) => {
+        const product = products.find(
+          (product) => product.id === detail.productId,
+        );
+        priceAmount += product.price;
+        return {
+          id: detail.id,
+          quantity: detail.quantity,
+          price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
+          name: product.name,
+          description: product.description,
+          img: product.img_products.map((img: any) => ({
             url: img.url,
             alt: img.alt,
             state_image: img.state_image,
           })),
-        ),
-        totalPrice: CurrencyFormatter.formatCurrency(
-          detail.totalPrice.toNumber(),
-        ),
-      })),
+
+          totalPrice: CurrencyFormatter.formatCurrency(
+            detail.totalPrice.toNumber(),
+          ),
+        };
+      }),
+      totalAmount: CurrencyFormatter.formatCurrency(priceAmount),
     };
   }
 
