@@ -197,7 +197,9 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         const product = products.find(
           (product) => product.id === detail.productId,
         );
-        priceAmount += parseInt(product.price);
+        priceAmount += detail.totalPrice.toNumber();
+        console.log(detail.price);
+
         return {
           id: detail.id,
           quantity: detail.quantity,
@@ -215,6 +217,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
           ),
         };
       }),
+
       totalAmount: CurrencyFormatter.formatCurrency(priceAmount),
     };
   }
