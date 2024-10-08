@@ -197,7 +197,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         const product = products.find(
           (product) => product.id === detail.productId,
         );
-        priceAmount += product.price;
+        priceAmount += parseInt(product.price);
         return {
           id: detail.id,
           quantity: detail.quantity,
