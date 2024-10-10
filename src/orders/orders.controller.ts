@@ -21,8 +21,8 @@ export class OrdersController {
   }
 
   @MessagePattern('orders.findAll')
-  findAll() {
-    return this.ordersService.findAll();
+  findAll(@Payload() userId: string) {
+    return this.ordersService.findAll(userId);
   }
 
   @MessagePattern('order.findOne')

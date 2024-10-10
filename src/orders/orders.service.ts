@@ -97,8 +97,14 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     }
   }
 
-  async findAll() {
+  async findAll(userId: string) {
     const orders = await this.order.findMany({
+      where: {
+        userId,
+        AND: {
+          paid: true,
+        },
+      },
       include: {
         details: true,
       },
