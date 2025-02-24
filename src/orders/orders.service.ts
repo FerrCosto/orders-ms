@@ -4,12 +4,13 @@ import { paidOrderDto } from './dto/paid-order.dto';
 import { PrismaClient } from '@prisma/client';
 import { NATS_SERVICE } from 'src/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, throwError } from 'rxjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrencyFormatter } from 'src/helpers';
 import { PaymentSessionInterface } from './interfaces/create-payment.interface';
-import { STATUS } from 'src/enums/status-order.enum';
+
 import { FindOneByOrderDto } from './dto/find-One-order.dto';
+import { UpdateProductStockDto } from './dto/update-stock.product.dto';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -23,14 +24,20 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
 
   async create(createOrderDto: CreateOrderDto) {
     try {
-      const productsId = createOrderDto.detail.map(
-        (detail) => detail.productId,
+      // Obtener los productos asociados con los IDs
+      const data: UpdateProductStockDto[] = createOrderDto.detail.map(
+        (detail) => ({
+          id: detail.productId,
+          quantity: detail.quantity,
+        }),
       );
 
-      console.log(productsId);
-      // Obtener los productos asociados con los IDs
       const products: any[] = await firstValueFrom(
-        this.client.send('products.validate', productsId),
+        this.client.send('products.validate', data).pipe(
+          catchError((error) => {
+            return throwError(() => new RpcException(error));
+          }),
+        ),
       );
       const totalPrice = createOrderDto.detail.reduce((acc, detail) => {
         const product = products.find(
@@ -90,6 +97,9 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       };
     } catch (error) {
       console.log(error);
+      if (error instanceof RpcException) {
+        throw error;
+      }
       throw new RpcException({
         status: 400,
         message: 'Check Logs',
@@ -245,6 +255,22 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async paidOrder(paidOrder: paidOrderDto) {
+    const orderOne = await this.order.findFirst({
+      where: { id: paidOrder.orderId },
+      include: {
+        details: true,
+      },
+    });
+
+    const data: UpdateProductStockDto[] = orderOne.details.map((detail) => ({
+      id: detail.productId,
+      quantity: detail.quantity,
+    }));
+    this.client.emit('product.updateStock', data).pipe(
+      catchError((error) => {
+        throw new RpcException(error);
+      }),
+    );
     const order = await this.order.update({
       where: {
         id: paidOrder.orderId,
