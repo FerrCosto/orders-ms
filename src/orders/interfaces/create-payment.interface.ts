@@ -14,7 +14,8 @@ export interface PaymentSessionInterface {
     id_order: number | null;
   }[];
   id: number;
-  date_order: Date;
+  createAt: Date;
+  updateAt?: Date;
   status: OrderStatus;
   paid: boolean;
 }

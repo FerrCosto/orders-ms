@@ -35,7 +35,8 @@ model details {
 model order {
     id Int @id @default(autoincrement())
     userId String 
-    date_order DateTime @db.Date
+    createAt DateTime @db.Date
+    updateAt DateTime @updatedAt
     status OrderStatus @default(PENDING)
     paid Boolean @default(false)
     details details[]

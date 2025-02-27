@@ -26,8 +26,17 @@ export class OrdersController {
   }
 
   @MessagePattern('order.findOne')
-  findOne(@Payload() findOneDto: FindOneByOrderDto) {
-    return this.ordersService.findOne(findOneDto);
+  async findOne(@Payload() findOneDto: FindOneByOrderDto) {
+    const order = await this.ordersService.findOne(findOneDto);
+    const orderPayment = await this.ordersService.paymentByFindOne(findOneDto);
+    const paymentSession = await this.ordersService.createPaymentSession(
+      orderPayment,
+    );
+
+    return {
+      order,
+      payment: paymentSession,
+    };
   }
 
   @MessagePattern('order.findOnePaid')

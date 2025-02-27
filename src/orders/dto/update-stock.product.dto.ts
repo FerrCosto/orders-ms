@@ -1,4 +1,4 @@
-import { IsInt, IsPositive, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsPositive, Min } from 'class-validator';
 
 export class UpdateProductStockDto {
   @IsInt()
@@ -9,4 +9,7 @@ export class UpdateProductStockDto {
   @Min(1)
   @IsPositive()
   quantity: number;
+  @IsBoolean()
+  @IsOptional()
+  isFind?: boolean = false;
 }

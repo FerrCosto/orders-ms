@@ -35,7 +35,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       const products: any[] = await firstValueFrom(
         this.client.send('products.validate', data).pipe(
           catchError((error) => {
-            return throwError(() => new RpcException(error));
+            throw new RpcException(error);
           }),
         ),
       );
@@ -50,7 +50,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       // Crear la orden y los detalles
       const order = await this.order.create({
         data: {
-          date_order: new Date(),
+          createAt: new Date(),
           userId: createOrderDto.userId,
           details: {
             createMany: {
@@ -75,9 +75,10 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         },
       });
 
+      const { updateAt, ...resData } = order;
       console.log(order);
       return {
-        ...order,
+        ...resData,
         details: order.details.map((detail) => {
           const product = products.find(
             (product) => product.id === detail.productId,
@@ -96,14 +97,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
       };
     } catch (error) {
-      console.log(error);
-      if (error instanceof RpcException) {
-        throw error;
-      }
-      throw new RpcException({
-        status: 400,
-        message: 'Check Logs',
-      });
+      throw new RpcException(error);
     }
   }
 
@@ -123,8 +117,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     return orders;
   }
 
-  async findOne(findOneDto: FindOneByOrderDto) {
-    let priceAmount: number = 0;
+  async getData(findOneDto: FindOneByOrderDto) {
     const { id, userId } = findOneDto;
     const order = await this.order.findFirst({
       where: {
@@ -145,20 +138,42 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         message: `Order with #${id} not found`,
       });
 
-    const productIds = order.details.map((detail) => detail.productId);
+    const data: UpdateProductStockDto[] = order.details.map((detail) => ({
+      id: detail.productId,
+      quantity: detail.quantity,
+      isFind: true,
+    }));
 
     const products: any[] = await firstValueFrom(
-      this.client.send('products.validate', productIds),
+      this.client.send('products.validate', data).pipe(
+        catchError((error) => {
+          throw new RpcException(error);
+        }),
+      ),
     );
 
-    console.log(products);
+    const totalPrice = order.details.reduce((acc, detail) => {
+      const product = products.find(
+        (product) => product.id === detail.productId,
+      );
+      const totalProductPrice = parseFloat(product.price) * detail.quantity;
+      return acc + totalProductPrice;
+    }, 0);
+    const { updateAt, ...resData } = order;
+    return { resData, order, products, totalPrice };
+  }
+
+  async findOne(findOneDto: FindOneByOrderDto) {
+    const { order, resData, products, totalPrice } = await this.getData(
+      findOneDto,
+    );
     return {
-      ...order,
+      ...resData,
       details: order.details.map((detail) => {
         const product = products.find(
           (product) => product.id === detail.productId,
         );
-        priceAmount += product.price;
+
         return {
           id: detail.id,
           quantity: detail.quantity,
@@ -175,12 +190,38 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
           ),
         };
       }),
-      totalAmount: CurrencyFormatter.formatCurrency(priceAmount),
+      totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
+    };
+  }
+
+  async paymentByFindOne(findOneDto: FindOneByOrderDto) {
+    const { order, resData, products, totalPrice } = await this.getData(
+      findOneDto,
+    );
+    return {
+      ...resData,
+      details: order.details.map((detail) => {
+        const product = products.find(
+          (product) => product.id === detail.productId,
+        );
+        const price = product.price;
+        const totalProductPrice = price * detail.quantity;
+        return {
+          ...detail,
+          price: detail.price.toNumber(),
+          name: product.name,
+          description: product.description,
+          img: product.img_products[0]?.url || null,
+          total: CurrencyFormatter.formatCurrency(totalProductPrice),
+        };
+      }),
+      totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
     };
   }
   async findOnePaid(findOneDto: FindOneByOrderDto) {
     let priceAmount: number = 0;
     const { id, userId } = findOneDto;
+    console.log({ id, userId });
     const order = await this.order.findFirst({
       where: {
         id,
@@ -194,19 +235,27 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       },
     });
 
+    console.log({ order });
     if (!order)
       throw new RpcException({
         status: HttpStatus.NOT_FOUND,
         message: `Order with #${id} not found`,
       });
-
-    const productIds = order.details.map((detail) => detail.productId);
+    const data: UpdateProductStockDto[] = order.details.map((detail) => ({
+      id: detail.productId,
+      quantity: detail.quantity,
+      isFind: true,
+    }));
 
     const products: any[] = await firstValueFrom(
-      this.client.send('products.validate', productIds),
+      this.client.send('products.validate', data).pipe(
+        catchError((error) => {
+          throw new RpcException(error);
+        }),
+      ),
     );
 
-    console.log(products);
+    console.log({ products });
     return {
       ...order,
       details: order.details.map((detail) => {
