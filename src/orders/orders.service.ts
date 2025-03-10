@@ -85,9 +85,10 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
           );
           const price = product.price;
           const totalProductPrice = price * detail.quantity;
+
           return {
             ...detail,
-            price: detail.price.toNumber(),
+            price: detail.price.toDecimalPlaces(2).toNumber(),
             name: product.name,
             description: product.description,
             img: product.img_products[0]?.url || null,
@@ -102,19 +103,64 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async findAll(userId: string) {
+    let totalProductPrice = 0;
     const orders = await this.order.findMany({
       where: {
         userId,
-        AND: {
-          paid: true,
-        },
+        // AND: {
+        //   paid: true,
+        // },
       },
       include: {
         details: true,
       },
     });
+    const data: UpdateProductStockDto[] = orders
+      .flatMap((detail) =>
+        detail.details.map((data) => ({
+          id: data.productId,
+          quantity: data.quantity,
+          isFind: true,
+        })),
+      )
+      .reduce((acc, item) => {
+        const existing = acc.find((x) => x.id === item.id);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          acc.push(item);
+        }
+        return acc;
+      }, [] as UpdateProductStockDto[]);
 
-    return orders;
+    const products: any[] = await firstValueFrom(
+      this.client.send('products.validate', data).pipe(
+        catchError((error) => {
+          throw new RpcException(error);
+        }),
+      ),
+    );
+
+    const totalPrice = orders.reduce((acc, order) => {
+      const orderTotal = order.details.reduce((sum, item) => {
+        const product = products.find(
+          (product) => product.id === item.productId,
+        );
+        if (!product) return sum;
+
+        const totalProductPrice = parseFloat(product.price) * item.quantity;
+        return sum + totalProductPrice;
+      }, 0);
+
+      return acc + orderTotal;
+    }, 0);
+
+    return {
+      orders: orders.map((order) => ({
+        ...order,
+        totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
+      })),
+    };
   }
 
   async getData(findOneDto: FindOneByOrderDto) {
@@ -124,7 +170,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         id,
         AND: {
           userId,
-          paid: false,
+          //   paid: false,
         },
       },
       include: {
@@ -169,27 +215,44 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     );
     return {
       ...resData,
-      details: order.details.map((detail) => {
+      details: resData.details.map((detail) => {
         const product = products.find(
           (product) => product.id === detail.productId,
         );
 
         return {
-          id: detail.id,
-          quantity: detail.quantity,
-          price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
-          name: product.name,
-          description: product.description,
-          img: product.img_products.map((img: any) => ({
-            url: img.url,
-            alt: img.alt,
-            state_image: img.state_image,
-          })),
-          totalPrice: CurrencyFormatter.formatCurrency(
-            detail.totalPrice.toNumber(),
+          ...detail,
+          price: detail.price.toDecimalPlaces(2).toNumber() || null,
+          name: product?.name || 'Desconocido',
+          description: product?.description || 'Sin descripción',
+          img: product?.img_products?.[0]?.url || null,
+          total: CurrencyFormatter.formatCurrency(
+            detail.totalPrice.toDecimalPlaces(2).toNumber(),
           ),
         };
       }),
+
+      //   details: order.details.map((detail) => {
+      //     const product = products.find(
+      //       (product) => product.id === detail.productId,
+      //     );
+
+      //     return {
+      //       id: detail.id,
+      //       quantity: detail.quantity,
+      //       price: CurrencyFormatter.formatCurrency(detail.price.toNumber()),
+      //       name: product.name,
+      //       description: product.description,
+      //       img: product.img_products.map((img: any) => ({
+      //         url: img.url,
+      //         alt: img.alt,
+      //         state_image: img.state_image,
+      //       })),
+      //       totalPrice: CurrencyFormatter.formatCurrency(
+      //         detail.totalPrice.toNumber(),
+      //       ),
+      //     };
+      //   }),
       totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
     };
   }
