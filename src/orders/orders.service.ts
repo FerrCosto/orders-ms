@@ -4,7 +4,7 @@ import { paidOrderDto } from './dto/paid-order.dto';
 import { PrismaClient } from '@prisma/client';
 import { NATS_SERVICE } from 'src/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { catchError, firstValueFrom, lastValueFrom, throwError } from 'rxjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrencyFormatter } from 'src/helpers';
 import { PaymentSessionInterface } from './interfaces/create-payment.interface';
@@ -33,11 +33,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       );
 
       const products: any[] = await firstValueFrom(
-        this.client.send('products.validate', data).pipe(
-          catchError((error) => {
-            throw new RpcException(error);
-          }),
-        ),
+        this.client.send('products.validate', data),
       );
       const totalPrice = createOrderDto.detail.reduce((acc, detail) => {
         const product = products.find(
@@ -378,11 +374,14 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       id: detail.productId,
       quantity: detail.quantity,
     }));
-    this.client.emit('product.updateStock', data).pipe(
-      catchError((error) => {
-        throw new RpcException(error);
-      }),
+    await lastValueFrom(
+      this.client.send('product.updateStock', data).pipe(
+        catchError((error) => {
+          throw new RpcException(error);
+        }),
+      ),
     );
+
     const order = await this.order.update({
       where: {
         id: paidOrder.orderId,
