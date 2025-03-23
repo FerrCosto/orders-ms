@@ -44,6 +44,11 @@ export class OrdersController {
     return this.ordersService.findOnePaid(findOneDto);
   }
 
+  @MessagePattern('orders.count')
+  countOrders() {
+    return this.ordersService.countOrders();
+  }
+
   @EventPattern('payment.succeded')
   paidOrder(@Payload() paidOrderDto: paidOrderDto) {
     return this.ordersService.paidOrder(paidOrderDto);

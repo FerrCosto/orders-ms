@@ -346,6 +346,28 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     };
   }
 
+  async countOrders() {
+    try {
+      const [totalOrders, ordersIsPaid, orderIsNotPaid] = await Promise.all([
+        this.order.count({}),
+        this.order.count({ where: { paid: true } }),
+        this.order.count({ where: { paid: false } }),
+      ]);
+
+      return {
+        totalOrders,
+        ordersIsPaid,
+        orderIsNotPaid,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new RpcException({
+        status: 500,
+        message: 'Mirar los logs',
+      });
+    }
+  }
+
   async createPaymentSession(order: PaymentSessionInterface) {
     const paymentSession = await firstValueFrom(
       this.client.send('create.session.payment', {
