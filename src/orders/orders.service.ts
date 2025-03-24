@@ -98,19 +98,25 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     }
   }
 
-  async findAll(userId: string) {
+  async findAll(userId?: string) {
     let totalProductPrice = 0;
-    const orders = await this.order.findMany({
-      where: {
-        userId,
-        // AND: {
-        //   paid: true,
-        // },
-      },
-      include: {
-        details: true,
-      },
-    });
+    const orders = userId
+      ? await this.order.findMany({
+          where: {
+            userId,
+            // AND: {
+            //   paid: true,
+            // },
+          },
+          include: {
+            details: true,
+          },
+        })
+      : await this.order.findMany({
+          include: {
+            details: true,
+          },
+        });
     const data: UpdateProductStockDto[] = orders
       .flatMap((detail) =>
         detail.details.map((data) => ({
@@ -137,8 +143,8 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       ),
     );
 
-    const totalPrice = orders.reduce((acc, order) => {
-      const orderTotal = order.details.reduce((sum, item) => {
+    const ordersWithTotal = orders.map((order) => {
+      const totalPrice = order.details.reduce((sum, item) => {
         const product = products.find(
           (product) => product.id === item.productId,
         );
@@ -148,15 +154,19 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         return sum + totalProductPrice;
       }, 0);
 
-      return acc + orderTotal;
-    }, 0);
+      return {
+        order: {
+          id: order.id,
+          status: order.status,
+          userId: order.userId,
+          paid: order.paid,
+          createAt: order.createAt,
+          totalAmount: `$${totalPrice.toFixed(2)}`, // Se formatea con dos decimales
+        },
+      };
+    });
 
-    return {
-      orders: orders.map((order) => ({
-        ...order,
-        totalAmount: CurrencyFormatter.formatCurrency(totalPrice),
-      })),
-    };
+    return { orders: ordersWithTotal };
   }
 
   async getData(findOneDto: FindOneByOrderDto) {

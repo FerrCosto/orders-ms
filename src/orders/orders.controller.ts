@@ -20,9 +20,14 @@ export class OrdersController {
     };
   }
 
-  @MessagePattern('orders.findAll')
-  findAll(@Payload() userId: string) {
+  @MessagePattern('orders.findAllByUser')
+  findAllByUser(@Payload() userId: string) {
     return this.ordersService.findAll(userId);
+  }
+
+  @MessagePattern('orders.findAll')
+  findAll() {
+    return this.ordersService.findAll();
   }
 
   @MessagePattern('order.findOne')
